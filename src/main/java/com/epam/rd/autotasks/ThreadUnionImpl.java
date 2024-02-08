@@ -32,6 +32,9 @@ public class ThreadUnionImpl implements ThreadUnion{
         Thread.getAllStackTraces().keySet().stream()
                 .filter(thread -> thread.getName().startsWith(name + "-worker-"))
                 .forEach(Thread::interrupt);
+        Thread.getAllStackTraces().keySet().stream()
+                .filter(thread -> thread.getName().startsWith(name + "-worker-"))
+                .forEach(Thread::interrupt);
     }
 
     @Override
@@ -66,10 +69,17 @@ public class ThreadUnionImpl implements ThreadUnion{
     public Thread newThread(Runnable r) {
         if (shutdownRequested) throw new IllegalStateException();
         String threadName = this.name + "-worker-" + threadCount.getAndIncrement();
-        Thread thread = new Thread(r, threadName);
-        thread.setUncaughtExceptionHandler((t, e) -> {
+        Runnable customRunnable = () -> {
+            try {
+                r.run();
+            } catch (Exception throwable) {
+                        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> {
             threadList.add(new FinishedThreadResult(t.getName(), e));
         });
-        return thread;
+            } finally {
+                threadList.add(new FinishedThreadResult(Thread.currentThread().getName(), new Throwable()));
+            }
+        };
+        return new Thread(customRunnable, threadName);
     }
 }
