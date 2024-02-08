@@ -72,12 +72,13 @@ public class ThreadUnionImpl implements ThreadUnion{
         Runnable customRunnable = () -> {
             try {
                 r.run();
-            } catch (Exception throwable) {
-                        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> {
-            threadList.add(new FinishedThreadResult(t.getName(), e));
-        });
+            } catch (Exception ex) {
+                Thread.currentThread().setUncaughtExceptionHandler((t, e) -> {
+                    threadList.add(new FinishedThreadResult(t.getName(), e));
+                });
+
             } finally {
-                threadList.add(new FinishedThreadResult(Thread.currentThread().getName(), new Throwable()));
+                threadList.add(new FinishedThreadResult(Thread.currentThread().getName()));
             }
         };
         return new Thread(customRunnable, threadName);
