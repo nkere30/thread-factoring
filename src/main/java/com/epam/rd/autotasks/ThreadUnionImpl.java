@@ -3,6 +3,7 @@ package com.epam.rd.autotasks;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ThreadUnionImpl implements ThreadUnion{
@@ -69,18 +70,19 @@ public class ThreadUnionImpl implements ThreadUnion{
     public Thread newThread(Runnable r) {
         if (shutdownRequested) throw new IllegalStateException();
         String threadName = this.name + "-worker-" + threadCount.getAndIncrement();
-        Runnable customRunnable = () -> {
+        AtomicBoolean exceptionThrown = new AtomicBoolean(false);
+        return new Thread(() -> {
             try {
                 r.run();
-            } catch (Exception ex) {
-                Thread.currentThread().setUncaughtExceptionHandler((t, e) -> {
-                    threadList.add(new FinishedThreadResult(t.getName(), e));
-                });
-
+            } catch (Throwable throwable) {
+                // Upon catching an exception, store the result with the thrown exception
+                exceptionThrown.set(true);
+                threadList.add(new FinishedThreadResult(Thread.currentThread().getName(), throwable));
             } finally {
-                threadList.add(new FinishedThreadResult(Thread.currentThread().getName()));
+                // After execution, store the result with null Throwable
+                if(!exceptionThrown.get())
+                    threadList.add(new FinishedThreadResult(Thread.currentThread().getName(), null));
             }
-        };
-        return new Thread(customRunnable, threadName);
+        }, threadName);
     }
 }
